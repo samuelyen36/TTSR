@@ -110,4 +110,12 @@ parser.add_argument('--lr_path', type=str, default='./test/demo/lr/lr.png',
 parser.add_argument('--ref_path', type=str, default='./test/demo/ref/ref.png',
                     help='The path of ref image when testing')
 
+### self add ref_level
+parser.add_argument('--eval_ref', type=str, default='1',
+                    help='in CUFED dataset, which level(image) is used for evaluation')
+parser.add_argument('--randompick', type=str2bool, default=False,
+                    help='randomly pick a reference image in testing phase')
+parser.add_argument('--featurelevel', type=int, default=3,
+                    help='which feature level would you use, choose from 1,2,3, 3 is default')
+
 args = parser.parse_args()

@@ -32,13 +32,13 @@ if __name__ == '__main__':
     t = Trainer(args, _logger, _dataloader, _model, _loss_all)
 
     ### test / eval / train
-    if (args.test):
+    if (args.test):     #one pair of image
         t.load(model_path=args.model_path)
         t.test()
     elif (args.eval):
         t.load(model_path=args.model_path)
         t.evaluate()
-    else:
+    else:       #train mode
         for epoch in range(1, args.num_init_epochs+1):
             t.train(current_epoch=epoch, is_init=True)
         for epoch in range(1, args.num_epochs+1):

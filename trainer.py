@@ -1,3 +1,4 @@
+from cv2 import PSNR
 from utils import calc_psnr_and_ssim
 from model import Vgg19
 
@@ -54,7 +55,8 @@ class Trainer():
 
     def prepare(self, sample_batched):
         for key in sample_batched.keys():
-            sample_batched[key] = sample_batched[key].to(self.device)
+            if type(sample_batched[key]) != list:
+                sample_batched[key] = sample_batched[key].to(self.device)
         return sample_batched
 
     def train(self, current_epoch=0, is_init=False):
@@ -118,13 +120,14 @@ class Trainer():
             torch.save(model_state_dict, model_name)
 
     def evaluate(self, current_epoch=0):
+        PSNR_list=[]
         self.logger.info('Epoch ' + str(current_epoch) + ' evaluation process...')
 
         if (self.args.dataset == 'CUFED'):
             self.model.eval()
             with torch.no_grad():
                 psnr, ssim, cnt = 0., 0., 0
-                for i_batch, sample_batched in enumerate(self.dataloader['test']['1']):
+                for i_batch, sample_batched in enumerate(self.dataloader['test'][str(self.args.eval_ref)]): #batch_size=1
                     cnt += 1
                     sample_batched = self.prepare(sample_batched)
                     lr = sample_batched['LR']
@@ -132,6 +135,8 @@ class Trainer():
                     hr = sample_batched['HR']
                     ref = sample_batched['Ref']
                     ref_sr = sample_batched['Ref_sr']
+                    input_filename = sample_batched['input_filename']
+                    ref_filename = sample_batched['ref_filename']
 
                     sr, _, _, _, _ = self.model(lr=lr, lrsr=lr_sr, ref=ref, refsr=ref_sr)
                     if (self.args.eval_save_results):
@@ -141,10 +146,11 @@ class Trainer():
                     
                     ### calculate psnr and ssim
                     _psnr, _ssim = calc_psnr_and_ssim(sr.detach(), hr.detach())
-
+                    PSNR_list.append((_psnr, input_filename[0], ref_filename[0]))
                     psnr += _psnr
                     ssim += _ssim
 
+                print("{}".format(cnt))
                 psnr_ave = psnr / cnt
                 ssim_ave = ssim / cnt
                 self.logger.info('Ref  PSNR (now): %.3f \t SSIM (now): %.4f' %(psnr_ave, ssim_ave))
@@ -158,6 +164,9 @@ class Trainer():
                     %(self.max_psnr, self.max_psnr_epoch, self.max_ssim, self.max_ssim_epoch))
 
         self.logger.info('Evaluation over.')
+        PSNR_list = sorted(PSNR_list, key=lambda tup: tup[0])
+        #for (_p, inname, refname) in PSNR_list:
+            #print("psnr: {}, input_file: {}, ref img: {}".format(_p, inname, refname))
 
     def test(self):
         self.logger.info('Test process...')

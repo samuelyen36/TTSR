@@ -60,7 +60,9 @@ class ToTensor(object):
                 'LR_sr': torch.from_numpy(LR_sr).float(),
                 'HR': torch.from_numpy(HR).float(),
                 'Ref': torch.from_numpy(Ref).float(),
-                'Ref_sr': torch.from_numpy(Ref_sr).float()}
+                'Ref_sr': torch.from_numpy(Ref_sr).float(),
+                'input_filename': sample['input_filename'],
+                'ref_filename': sample['ref_filename']}
 
 
 class TrainSet(Dataset):
@@ -87,8 +89,8 @@ class TrainSet(Dataset):
         ### Ref and Ref_sr
         Ref_sub = imread(self.ref_list[idx])
         h2, w2 = Ref_sub.shape[:2]
-        Ref_sr_sub = np.array(Image.fromarray(Ref_sub).resize((w2//4, h2//4), Image.BICUBIC))
-        Ref_sr_sub = np.array(Image.fromarray(Ref_sr_sub).resize((w2, h2), Image.BICUBIC))
+        Ref_sr_sub = np.array(Image.fromarray(Ref_sub).resize((w2//4, h2//4), Image.BICUBIC))       #downscale ref image
+        Ref_sr_sub = np.array(Image.fromarray(Ref_sr_sub).resize((w2, h2), Image.BICUBIC))          #upscale the former downscaled-image
     
         ### complete ref and ref_sr to the same size, to use batch_size > 1
         Ref = np.zeros((160, 160, 3))
@@ -114,7 +116,9 @@ class TrainSet(Dataset):
                   'LR_sr': LR_sr,
                   'HR': HR,
                   'Ref': Ref, 
-                  'Ref_sr': Ref_sr}
+                  'Ref_sr': Ref_sr,
+                  'input_filename': self.input_list[idx],
+                  'ref_filename': self.ref_list[idx]}
 
         if self.transform:
             sample = self.transform(sample)
@@ -127,6 +131,7 @@ class TestSet(Dataset):
         self.ref_list = sorted(glob.glob(os.path.join(args.dataset_dir, 'test/CUFED5', 
             '*_' + ref_level + '.png')))
         self.transform = transform
+        self.randompick = args.randompick
 
     def __len__(self):
         return len(self.input_list)
@@ -142,13 +147,24 @@ class TestSet(Dataset):
         LR = np.array(Image.fromarray(HR).resize((w//4, h//4), Image.BICUBIC))
         LR_sr = np.array(Image.fromarray(LR).resize((w, h), Image.BICUBIC))
 
+        ref_filename=''
+
         ### Ref and Ref_sr
-        Ref = imread(self.ref_list[idx])
+        if self.randompick == False:
+            Ref = imread(self.ref_list[idx])
+            ref_filename = self.ref_list[idx]
+        if self.randompick == True:
+            _len = len(self.input_list)
+            _idx = random.randrange(0, _len)
+            Ref = imread(self.ref_list[_idx])
+            ref_filename = self.ref_list[_idx]
+            #print("pick ref image rangomly: LR: {}, Ref:{}".format(self.input_list[idx],self.ref_list[_idx]))
         h2, w2 = Ref.shape[:2]
         h2, w2 = h2//4*4, w2//4*4
         Ref = Ref[:h2, :w2, :]
         Ref_sr = np.array(Image.fromarray(Ref).resize((w2//4, h2//4), Image.BICUBIC))
         Ref_sr = np.array(Image.fromarray(Ref_sr).resize((w2, h2), Image.BICUBIC))
+
 
         ### change type
         LR = LR.astype(np.float32)
@@ -164,11 +180,13 @@ class TestSet(Dataset):
         Ref = Ref / 127.5 - 1.
         Ref_sr = Ref_sr / 127.5 - 1.
 
-        sample = {'LR': LR,  
+        sample = {'LR': LR,                                             #also modify toTensor to add new keys
                   'LR_sr': LR_sr,
                   'HR': HR,
                   'Ref': Ref, 
-                  'Ref_sr': Ref_sr}
+                  'Ref_sr': Ref_sr,
+                  'input_filename': str(self.input_list[idx]),
+                  'ref_filename': str(ref_filename)}
 
         if self.transform:
             sample = self.transform(sample)

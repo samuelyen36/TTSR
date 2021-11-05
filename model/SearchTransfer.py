@@ -22,14 +22,16 @@ class SearchTransfer(nn.Module):
 
     def forward(self, lrsr_lv3, refsr_lv3, ref_lv1, ref_lv2, ref_lv3):
         ### search
-        lrsr_lv3_unfold  = F.unfold(lrsr_lv3, kernel_size=(3, 3), padding=1)
+        lrsr_lv3_unfold  = F.unfold(lrsr_lv3, kernel_size=(3, 3), padding=1)    #https://blog.csdn.net/qq_34914551/article/details/102940368
         refsr_lv3_unfold = F.unfold(refsr_lv3, kernel_size=(3, 3), padding=1)
         refsr_lv3_unfold = refsr_lv3_unfold.permute(0, 2, 1)
 
         refsr_lv3_unfold = F.normalize(refsr_lv3_unfold, dim=2) # [N, Hr*Wr, C*k*k]
         lrsr_lv3_unfold  = F.normalize(lrsr_lv3_unfold, dim=1) # [N, C*k*k, H*W]
+        #print(refsr_lv3_unfold.shape)
+        #print(lrsr_lv3_unfold.shape)
 
-        R_lv3 = torch.bmm(refsr_lv3_unfold, lrsr_lv3_unfold) #[N, Hr*Wr, H*W]
+        R_lv3 = torch.bmm(refsr_lv3_unfold, lrsr_lv3_unfold) #[N, Hr*Wr, H*W], Performs a batch matrix-matrix product of matrices on two 3D vectors
         R_lv3_star, R_lv3_star_arg = torch.max(R_lv3, dim=1) #[N, H*W]
 
         ### transfer
@@ -37,9 +39,9 @@ class SearchTransfer(nn.Module):
         ref_lv2_unfold = F.unfold(ref_lv2, kernel_size=(6, 6), padding=2, stride=2)
         ref_lv1_unfold = F.unfold(ref_lv1, kernel_size=(12, 12), padding=4, stride=4)
 
-        T_lv3_unfold = self.bis(ref_lv3_unfold, 2, R_lv3_star_arg)
+        T_lv3_unfold = self.bis(ref_lv3_unfold, 2, R_lv3_star_arg)  #smallest
         T_lv2_unfold = self.bis(ref_lv2_unfold, 2, R_lv3_star_arg)
-        T_lv1_unfold = self.bis(ref_lv1_unfold, 2, R_lv3_star_arg)
+        T_lv1_unfold = self.bis(ref_lv1_unfold, 2, R_lv3_star_arg)  #largest
 
         T_lv3 = F.fold(T_lv3_unfold, output_size=lrsr_lv3.size()[-2:], kernel_size=(3,3), padding=1) / (3.*3.)
         T_lv2 = F.fold(T_lv2_unfold, output_size=(lrsr_lv3.size(2)*2, lrsr_lv3.size(3)*2), kernel_size=(6,6), padding=2, stride=2) / (3.*3.)

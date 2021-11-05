@@ -5,13 +5,13 @@ from torchvision import models
 from utils import MeanShift
 
 
-class LTE(torch.nn.Module):
+class LTE(torch.nn.Module):     ##extract different levels of VGG layers
     def __init__(self, requires_grad=True, rgb_range=1):
         super(LTE, self).__init__()
         
         ### use vgg19 weights to initialize
-        vgg_pretrained_features = models.vgg19(pretrained=True).features
 
+        vgg_pretrained_features = models.vgg19(pretrained=True).features
         self.slice1 = torch.nn.Sequential()
         self.slice2 = torch.nn.Sequential()
         self.slice3 = torch.nn.Sequential()
