@@ -39,6 +39,9 @@ if __name__ == '__main__':
         t.load(model_path=args.model_path)
         t.evaluate()
     else:       #train mode
+        if args.load_at_training:
+            t.load(args.resume_weight)
+            print("weights is loaded")
         for epoch in range(1, args.num_init_epochs+1):
             t.train(current_epoch=epoch, is_init=True)
         for epoch in range(1, args.num_epochs+1):
