@@ -49,7 +49,7 @@ class SFE(nn.Module):
         for i in range(self.num_res_blocks):
             x = self.RBs[i](x)
         x = self.conv_tail(x)
-        x = x + x1
+        x = x + x1      #add the residual
         return x
 
 
@@ -143,7 +143,7 @@ class MainNet(nn.Module):
         self.SFE = SFE(self.num_res_blocks[0], n_feats, res_scale)
 
         ### stage11
-        self.conv11_head = conv3x3(256+n_feats, n_feats)
+        self.conv11_head = conv3x3(256+n_feats, n_feats)    #inchannel, outchannel
         self.RB11 = nn.ModuleList()
         for i in range(self.num_res_blocks[1]):
             self.RB11.append(ResBlock(in_channels=n_feats, out_channels=n_feats,
@@ -209,9 +209,10 @@ class MainNet(nn.Module):
         ### soft-attention
         x11_res = x11
         x11_res = torch.cat((x11_res, T_lv3), dim=1)
-        x11_res = self.conv11_head(x11_res) #F.relu(self.conv11_head(x11_res))
+        x11_res = self.conv11_head(x11_res) #F.relu(self.conv11_head(x11_res))1*1 convolution
         x11_res = x11_res * S
         x11 = x11 + x11_res
+        ### soft-attention end
 
         x11_res = x11
 
@@ -279,4 +280,4 @@ class MainNet(nn.Module):
 
         x = self.merge_tail(x31, x32, x33)
 
-        return x
+        return x        #super-resolved image 

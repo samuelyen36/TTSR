@@ -12,6 +12,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 import torchvision.utils as utils
+from model.rcan import make_cleaning_net
 
 
 class Trainer():
@@ -19,7 +20,9 @@ class Trainer():
         self.args = args
         self.logger = logger
         self.dataloader = dataloader
-        self.model = model
+        self.model = model                  #TTSR.TTSR(args).to(device)
+        self.rcan = make_cleaning_net().to("cuda")
+        self.rcan.load_state_dict(torch.load("Gxy_112941.pth"))
         self.loss_all = loss_all
         self.device = torch.device('cpu') if args.cpu else torch.device('cuda')
         self.vgg19 = Vgg19.Vgg19(requires_grad=False).to(self.device)
@@ -71,10 +74,13 @@ class Trainer():
             sample_batched = self.prepare(sample_batched)
             lr = sample_batched['LR']
             lr_sr = sample_batched['LR_sr']
+            with torch.no_grad():       #no need to update rcan
+                lr_RCAN = self.rcan(sample_batched['LR_sr'].cuda())
             hr = sample_batched['HR']
             ref = sample_batched['Ref']
             ref_sr = sample_batched['Ref_sr']
-            sr, S, T_lv3, T_lv2, T_lv1 = self.model(lr=lr, lrsr=lr_sr, ref=ref, refsr=ref_sr)
+            sr, S, T_lv3, T_lv2, T_lv1 = self.model(lr=lr, lrsr=lr_sr, ref=ref, refsr=ref_sr)       #T are used to calculate TPL loss
+            #sr, S, T_lv3, T_lv2, T_lv1 = self.model(lr=lr, lrsr=lr_RCAN, ref=ref, refsr=ref)       #use RCAN to refine LR and use original ref image
 
             ### calc loss
             is_print = ((i_batch + 1) % self.args.print_every == 0) ### flag of print
@@ -86,7 +92,7 @@ class Trainer():
                     '\t batch: ' + str(i_batch+1) )
                 self.logger.info( 'rec_loss: %.10f' %(rec_loss.item()) )
 
-            if (not is_init):
+            if (not is_init):       #using not only reconstruction loss
                 if ('per_loss' in self.loss_all):
                     sr_relu5_1 = self.vgg19((sr + 1.) / 2.)
                     with torch.no_grad():

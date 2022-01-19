@@ -106,11 +106,22 @@ class TrainSet(Dataset):
         Ref_sr = Ref_sr.astype(np.float32)
 
         ### rgb range to [-1, 1]
+        
         LR = LR / 127.5 - 1.
         LR_sr = LR_sr / 127.5 - 1.
         HR = HR / 127.5 - 1.
         Ref = Ref / 127.5 - 1.
         Ref_sr = Ref_sr / 127.5 - 1.
+        
+
+        """
+        ### rgb range to[0,1]
+        LR = LR / 256.
+        LR_sr = LR_sr / 256.
+        HR = HR / 256.
+        Ref = Ref / 256.
+        Ref_sr = Ref_sr / 256.
+        """
 
         sample = {'LR': LR,  
                   'LR_sr': LR_sr,

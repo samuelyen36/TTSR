@@ -24,8 +24,8 @@ class TTSR(nn.Module):
             sr_lv1, sr_lv2, sr_lv3 = self.LTE_copy((sr + 1.) / 2.)
             return sr_lv1, sr_lv2, sr_lv3
 
-        lrsr_lv1, lrsr_lv2, lrsr_lv3  = self.LTE((lrsr.detach() + 1.) / 2.)     #in past, only3
-        refsr_lv1, refsr_lv2, refsr_lv3 = self.LTE((refsr.detach() + 1.) / 2.)  #in past, only3
+        lrsr_lv1, lrsr_lv2, lrsr_lv3  = self.LTE((lrsr.detach() + 1.) / 2.)     #in past, only get feautres from level 3
+        refsr_lv1, refsr_lv2, refsr_lv3 = self.LTE((refsr.detach() + 1.) / 2.)  #in past, only get features from level 3
         ref_lv1, ref_lv2, ref_lv3 = self.LTE((ref.detach() + 1.) / 2.)
 
         if self.args.featurelevel == 1:
