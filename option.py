@@ -116,11 +116,13 @@ parser.add_argument('--eval_ref', type=str, default='1',
 parser.add_argument('--randompick', type=str2bool, default=False,
                     help='randomly pick a reference image in testing phase')
 parser.add_argument('--featurelevel', type=int, default=3,
-                    help='which feature level would you use, choose from 1,2,3, 3 is default')
+                    help='which feature level of VGG feature would you use, choose from 1,2,3, 3 is default')
 parser.add_argument('--load_at_training', type=str2bool, default=False,
                     help='resume training')
 parser.add_argument('--resume_weight', type=str, default="\0",
                     help='weight of previously trained')
+parser.add_argument('--eval_multiframe', type=str2bool, default=False,
+                    help='evaluate the result using multi reference frame')
 
 
 args = parser.parse_args()

@@ -21,8 +21,8 @@ class Trainer():
         self.logger = logger
         self.dataloader = dataloader
         self.model = model                  #TTSR.TTSR(args).to(device)
-        self.rcan = make_cleaning_net().to("cuda")
-        self.rcan.load_state_dict(torch.load("Gxy_112941.pth"))
+        #self.rcan = make_cleaning_net().to("cuda")      #create RCAN
+        #self.rcan.load_state_dict(torch.load("Gxy_112941.pth"))
         self.loss_all = loss_all
         self.device = torch.device('cpu') if args.cpu else torch.device('cuda')
         self.vgg19 = Vgg19.Vgg19(requires_grad=False).to(self.device)
@@ -74,8 +74,8 @@ class Trainer():
             sample_batched = self.prepare(sample_batched)
             lr = sample_batched['LR']
             lr_sr = sample_batched['LR_sr']
-            with torch.no_grad():       #no need to update rcan
-                lr_RCAN = self.rcan(sample_batched['LR_sr'].cuda())
+            #with torch.no_grad():       #no need to update rcan
+            #    lr_RCAN = self.rcan(sample_batched['LR_sr'].cuda())
             hr = sample_batched['HR']
             ref = sample_batched['Ref']
             ref_sr = sample_batched['Ref_sr']
@@ -125,6 +125,25 @@ class Trainer():
             model_name = self.args.save_dir.strip('/')+'/model/model_'+str(current_epoch).zfill(5)+'.pt'
             torch.save(model_state_dict, model_name)
 
+    def see_sim_of_different_level(self, sim_dict):
+        for _, sample_batched in enumerate(self.dataloader['test'][str(1)]):
+            input_filename = sample_batched['input_filename']
+            sim_cat = sim_dict[(str(input_filename)+"_"+str(1))]
+            for i in range(2,6):    #2~5levels
+                current_sim = sim_dict[(str(input_filename)+"_"+str(i))]
+                sim_cat = torch.cat((sim_cat,current_sim), dim=0)     #concate along channel
+            _val, _idx = torch.max(input=sim_cat, dim=0)
+            stat = [0] * 5
+            _idx_list = _idx.tolist()
+            for i in range(len(_idx_list)):
+                for j in range(len(_idx_list[i])):
+                    stat[_idx_list[i][j]] = stat[_idx_list[i][j]]+1
+            percent_list = [round(number/sum(stat),2) for number in stat]
+            #print("similarity index: {}\t\tpercent: {}".format(stat, percent_list))
+            print("similarity index: {:5}{:5}{:5}{:5}{:5}\tpercent: {:<6} {:<6} {:<6} {:<6} {:<6} ".format(*stat, *percent_list))
+            #print("filename: {}\tsim_map_shape: {}\tmax_shape: {}\targmax_shape: {}".format(input_filename, sim_cat.shape, _val.shape, _idx.shape))
+
+
     def evaluate(self, current_epoch=0):
         PSNR_list=[]
         self.logger.info('Epoch ' + str(current_epoch) + ' evaluation process...')
@@ -133,6 +152,7 @@ class Trainer():
             self.model.eval()
             with torch.no_grad():
                 psnr, ssim, cnt = 0., 0., 0
+            
                 for i_batch, sample_batched in enumerate(self.dataloader['test'][str(self.args.eval_ref)]): #batch_size=1
                     cnt += 1
                     sample_batched = self.prepare(sample_batched)
@@ -155,8 +175,37 @@ class Trainer():
                     PSNR_list.append((_psnr, input_filename[0], ref_filename[0]))
                     psnr += _psnr
                     ssim += _ssim
+                
+                """
+                sim_map_dict = {}
+                for i in range(1,6):
+                    print("evaluating on ref level: {}".format(i))
+                    for i_batch, sample_batched in enumerate(self.dataloader['test'][str(i)]): #batch_size=1
+                        cnt += 1
+                        sample_batched = self.prepare(sample_batched)
+                        lr = sample_batched['LR']
+                        lr_sr = sample_batched['LR_sr']
+                        hr = sample_batched['HR']
+                        ref = sample_batched['Ref']
+                        ref_sr = sample_batched['Ref_sr']
+                        input_filename = sample_batched['input_filename']
+                        ref_filename = sample_batched['ref_filename']
+                        #print("LRSR: {}\tREF: {}\tREFSR: {}".format(lr_sr.shape, ref.shape, ref_sr.shape))
+                        sr, similarity_map, _, _, _ = self.model(lr=lr, lrsr=lr_sr, ref=ref, refsr=ref_sr)      #return sr, S, T_lv3, T_lv2, T_lv1
+                        if (self.args.eval_save_results):
+                            sr_save = (sr+1.) * 127.5
+                            sr_save = np.transpose(sr_save.squeeze().round().cpu().numpy(), (1, 2, 0)).astype(np.uint8)
+                            imsave(os.path.join(self.args.save_dir, 'save_results', str(i_batch).zfill(5)+'ref{}'.format(str(i))+'.png'), sr_save)
+                        
+                        ### calculate psnr and ssim
+                        _psnr, _ssim = calc_psnr_and_ssim(sr.detach(), hr.detach())
+                        PSNR_list.append((_psnr, input_filename[0], ref_filename[0]))
+                        psnr += _psnr
+                        ssim += _ssim
+                        sim_map_dict[(str(input_filename)+"_"+str(i))] = torch.squeeze(similarity_map,0)
 
-                print("{}".format(cnt))
+                self.see_sim_of_different_level(sim_map_dict)
+                """
                 psnr_ave = psnr / cnt
                 ssim_ave = ssim / cnt
                 self.logger.info('Ref  PSNR (now): %.3f \t SSIM (now): %.4f' %(psnr_ave, ssim_ave))
@@ -220,3 +269,55 @@ class Trainer():
             self.logger.info('output path: %s' %(save_path))
 
         self.logger.info('Test over.')
+
+    def evaluate_multiframe(self, current_epoch=0):
+        PSNR_list=[]
+        self.logger.info('Epoch ' + str(current_epoch) + ' evaluation process...')
+
+        if (self.args.dataset == 'CUFED'):
+            self.model.eval()
+            with torch.no_grad():
+                psnr, ssim, cnt = 0., 0., 0
+            
+                for i_batch, sample_batched in enumerate(self.dataloader['multi']): #batch_size=1
+                    cnt += 1
+                    sample_batched = self.prepare(sample_batched)
+                    lr = sample_batched['LR']
+                    lr_sr = sample_batched['LR_sr']
+                    hr = sample_batched['HR']
+                    ref = sample_batched['Ref']     #now, it's a list
+                    ref_sr = sample_batched['Ref_sr']
+                    input_filename = sample_batched['input_filename']
+                    ref_filename = sample_batched['ref_filename']
+
+                    for i in range(0, len(ref)):
+                        ref[i] = ref[i].to(self.device)
+                        ref_sr[i] = ref_sr[i].to(self.device)
+                    sr, _, _, _, _ = self.model.multiframe_test(lr=lr, lrsr=lr_sr, ref=ref, refsr=ref_sr)
+                    if (self.args.eval_save_results):
+                        sr_save = (sr+1.) * 127.5
+                        sr_save = np.transpose(sr_save.squeeze().round().cpu().numpy(), (1, 2, 0)).astype(np.uint8)
+                        imsave(os.path.join(self.args.save_dir, 'save_results', str(i_batch).zfill(5)+'.png'), sr_save)
+                    
+                    ### calculate psnr and ssim
+                    _psnr, _ssim = calc_psnr_and_ssim(sr.detach(), hr.detach())
+                    PSNR_list.append((_psnr, input_filename[0], ref_filename[0]))
+                    psnr += _psnr
+                    ssim += _ssim
+                
+                psnr_ave = psnr / cnt
+                ssim_ave = ssim / cnt
+                self.logger.info('Ref  PSNR (now): %.3f \t SSIM (now): %.4f' %(psnr_ave, ssim_ave))
+                if (psnr_ave > self.max_psnr):
+                    self.max_psnr = psnr_ave
+                    self.max_psnr_epoch = current_epoch
+                if (ssim_ave > self.max_ssim):
+                    self.max_ssim = ssim_ave
+                    self.max_ssim_epoch = current_epoch
+                self.logger.info('Ref  PSNR (max): %.3f (%d) \t SSIM (max): %.4f (%d)' 
+                    %(self.max_psnr, self.max_psnr_epoch, self.max_ssim, self.max_ssim_epoch))
+
+        self.logger.info('Evaluation over.')
+        PSNR_list = sorted(PSNR_list, key=lambda tup: tup[0])
+        #for (_p, inname, refname) in PSNR_list:
+            #print("psnr: {}, input_file: {}, ref img: {}".format(_p, inname, refname))

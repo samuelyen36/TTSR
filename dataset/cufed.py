@@ -64,6 +64,28 @@ class ToTensor(object):
                 'input_filename': sample['input_filename'],
                 'ref_filename': sample['ref_filename']}
 
+class ToTensor_multi(object):
+    def __call__(self, sample):
+        LR, LR_sr, HR, Ref, Ref_sr = sample['LR'], sample['LR_sr'], sample['HR'], sample['Ref'], sample['Ref_sr']
+        LR = LR.transpose((2,0,1))
+        LR_sr = LR_sr.transpose((2,0,1))
+        HR = HR.transpose((2,0,1))
+        for i in range(0, len(Ref)):
+            Ref[i] = Ref[i].transpose((2,0,1))
+            Ref_sr[i] = Ref_sr[i].transpose((2,0,1))
+            Ref[i] = torch.from_numpy(Ref[i]).float()
+            Ref_sr[i] = torch.from_numpy(Ref_sr[i]).float()
+        #Ref = Ref.transpose((2,0,1))
+        #Ref_sr = Ref_sr.transpose((2,0,1))
+        return {'LR': torch.from_numpy(LR).float(),
+                'LR_sr': torch.from_numpy(LR_sr).float(),
+                'HR': torch.from_numpy(HR).float(),
+                'Ref': Ref,
+                'Ref_sr': Ref_sr,
+                'input_filename': sample['input_filename'],
+                'ref_filename': sample['ref_filename']}
+
+
 
 class TrainSet(Dataset):
     def __init__(self, args, transform=transforms.Compose([RandomFlip(), RandomRotate(), ToTensor()]) ):
@@ -198,6 +220,75 @@ class TestSet(Dataset):
                   'Ref_sr': Ref_sr,
                   'input_filename': str(self.input_list[idx]),
                   'ref_filename': str(ref_filename)}
+
+        if self.transform:
+            sample = self.transform(sample)
+        return sample
+
+class TestSet_multiframe(Dataset):
+    def __init__(self, args, transform=transforms.Compose([ToTensor_multi()])):
+        self.input_list = sorted(glob.glob(os.path.join(args.dataset_dir, 'test/CUFED5', '*_0.png')))
+        self.transform = transform
+
+    def __len__(self):
+        return len(self.input_list)
+
+    def __getitem__(self, idx):
+        ### HR
+        HR = imread(self.input_list[idx])
+        h, w = HR.shape[:2]
+        h, w = h//4*4, w//4*4
+        HR = HR[:h, :w, :] ### crop to the multiple of 4
+
+        ### LR and LR_sr
+        LR = np.array(Image.fromarray(HR).resize((w//4, h//4), Image.BICUBIC))
+        LR_sr = np.array(Image.fromarray(LR).resize((w, h), Image.BICUBIC))
+
+        ref_filename=''
+        Ref_list=[]
+        Ref_SR_list=[]
+        ref_filename_list=[]
+        ### Ref and Ref_sr
+        for i in range(1,6):
+            #Ref_list.append()
+            #print(self.input_list[idx][:-5]+str(i)+".png")
+            Ref = imread(self.input_list[idx][:-5]+str(i)+".png")
+            ref_filename_list.append(self.input_list[idx][:-5]+str(i)+".png")
+
+            h2, w2 = Ref.shape[:2]
+            h2, w2 = h2//4*4, w2//4*4
+            Ref = Ref[:h2, :w2, :]
+            Ref_sr = np.array(Image.fromarray(Ref).resize((w2//4, h2//4), Image.BICUBIC))
+            Ref_sr = np.array(Image.fromarray(Ref_sr).resize((w2, h2), Image.BICUBIC))
+            Ref = Ref.astype(np.float32)
+            Ref_sr = Ref_sr.astype(np.float32)
+            Ref = Ref / 127.5 - 1.
+            Ref_sr = Ref_sr / 127.5 - 1.
+            Ref_list.append(Ref)
+            Ref_SR_list.append(Ref_sr)
+
+        #Ref = imread(self.ref_list[idx])
+        #ref_filename = self.ref_list[idx]
+        #print("pick ref image rangomly: LR: {}, Ref:{}".format(self.input_list[idx],self.ref_list[_idx]))
+
+
+        ### change type
+        LR = LR.astype(np.float32)
+        LR_sr = LR_sr.astype(np.float32)
+        HR = HR.astype(np.float32)
+
+        ### rgb range to [-1, 1]
+        LR = LR / 127.5 - 1.
+        LR_sr = LR_sr / 127.5 - 1.
+        HR = HR / 127.5 - 1.
+
+        sample = {'LR': LR,                                             #also modify toTensor to add new keys
+                  'LR_sr': LR_sr,
+                  'HR': HR,
+                  'Ref': Ref_list, 
+                  'Ref_sr': Ref_SR_list,
+                  'input_filename': str(self.input_list[idx]),
+                  'ref_filename': ref_filename_list}
 
         if self.transform:
             sample = self.transform(sample)

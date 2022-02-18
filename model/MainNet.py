@@ -225,7 +225,7 @@ class MainNet(nn.Module):
         x21 = x11
         x21_res = x21
         x22 = self.conv12(x11)
-        x22 = F.relu(self.ps12(x22))
+        x22 = F.relu(self.ps12(x22))    #ps: PixelShuffle, scale=2
 
         ### soft-attention
         x22_res = x22
@@ -278,6 +278,8 @@ class MainNet(nn.Module):
         x32 = x32 + x32_res
         x33 = x33 + x33_res
 
-        x = self.merge_tail(x31, x32, x33)
+        
 
+        x = self.merge_tail(x31, x32, x33)
+        #print("x31: {}\tx32: {}\tx33: {}\tx: {}".format(x31.shape, x32.shape, x33.shape, x.shape))
         return x        #super-resolved image 

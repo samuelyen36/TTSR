@@ -38,6 +38,9 @@ if __name__ == '__main__':
     elif (args.eval):
         t.load(model_path=args.model_path)
         t.evaluate()
+    elif args.eval_multiframe:
+        t.load(model_path=args.model_path)
+        t.evaluate_multiframe()
     else:       #train mode
         if args.load_at_training:
             t.load(args.resume_weight)

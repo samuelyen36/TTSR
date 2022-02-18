@@ -1,4 +1,4 @@
-### test
+### test, give one pair of input image
 python main.py --save_dir ./test/demo/output/ \
                --reset True \
                --log_file_name test.log \
