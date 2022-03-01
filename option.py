@@ -123,6 +123,7 @@ parser.add_argument('--resume_weight', type=str, default="\0",
                     help='weight of previously trained')
 parser.add_argument('--eval_multiframe', type=str2bool, default=False,
                     help='evaluate the result using multi reference frame')
-
+parser.add_argument('--eval_multiframe_count', type=int, default=5,
+                    help='how many frames you want to use for multi-frame inference')
 
 args = parser.parse_args()

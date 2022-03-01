@@ -229,6 +229,8 @@ class TestSet_multiframe(Dataset):
     def __init__(self, args, transform=transforms.Compose([ToTensor_multi()])):
         self.input_list = sorted(glob.glob(os.path.join(args.dataset_dir, 'test/CUFED5', '*_0.png')))
         self.transform = transform
+        self.multi_frame_count = args.eval_multiframe_count
+        print("in dataset of dataloader, {} frames are used".format(self.multi_frame_count))
 
     def __len__(self):
         return len(self.input_list)
@@ -249,7 +251,7 @@ class TestSet_multiframe(Dataset):
         Ref_SR_list=[]
         ref_filename_list=[]
         ### Ref and Ref_sr
-        for i in range(1,6):
+        for i in range(1,self.multi_frame_count+1):
             #Ref_list.append()
             #print(self.input_list[idx][:-5]+str(i)+".png")
             Ref = imread(self.input_list[idx][:-5]+str(i)+".png")

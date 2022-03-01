@@ -53,6 +53,10 @@ def mkExpDir(args):
     if ((args.eval and args.eval_save_results) or args.test):
         os.makedirs(os.path.join(args.save_dir, 'save_results'))
 
+    if ((args.eval_multiframe and args.eval_save_results) or args.test):
+        os.makedirs(os.path.join(args.save_dir, 'save_results'))
+
+
     args_file = open(os.path.join(args.save_dir, 'args.txt'), 'w')
     for k, v in vars(args).items():
         args_file.write(k.rjust(30,' ') + '\t' + str(v) + '\n')

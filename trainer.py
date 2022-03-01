@@ -163,6 +163,7 @@ class Trainer():
                     ref_sr = sample_batched['Ref_sr']
                     input_filename = sample_batched['input_filename']
                     ref_filename = sample_batched['ref_filename']
+                    print("input name: {}\tref name: {}".format(input_filename, ref_filename))
 
                     sr, _, _, _, _ = self.model(lr=lr, lrsr=lr_sr, ref=ref, refsr=ref_sr)
                     if (self.args.eval_save_results):
@@ -289,11 +290,13 @@ class Trainer():
                     ref_sr = sample_batched['Ref_sr']
                     input_filename = sample_batched['input_filename']
                     ref_filename = sample_batched['ref_filename']
+                    
 
                     for i in range(0, len(ref)):
                         ref[i] = ref[i].to(self.device)
                         ref_sr[i] = ref_sr[i].to(self.device)
                     sr, _, _, _, _ = self.model.multiframe_test(lr=lr, lrsr=lr_sr, ref=ref, refsr=ref_sr)
+                    
                     if (self.args.eval_save_results):
                         sr_save = (sr+1.) * 127.5
                         sr_save = np.transpose(sr_save.squeeze().round().cpu().numpy(), (1, 2, 0)).astype(np.uint8)

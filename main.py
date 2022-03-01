@@ -37,9 +37,11 @@ if __name__ == '__main__':
         t.test()
     elif (args.eval):
         t.load(model_path=args.model_path)
+        print("load model success and evaluate on single frame")
         t.evaluate()
     elif args.eval_multiframe:
         t.load(model_path=args.model_path)
+        print("load model success and evaluate on multiframe")
         t.evaluate_multiframe()
     else:       #train mode
         if args.load_at_training:

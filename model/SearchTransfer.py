@@ -32,7 +32,7 @@ class SearchTransfer(nn.Module):
 
         R_lv3 = torch.bmm(refsr_lv3_unfold, lrsr_lv3_unfold) #[N, Hr*Wr, H*W], Performs a batch matrix-matrix product of matrices on two 3D vectors
         R_lv3_star, R_lv3_star_arg = torch.max(R_lv3, dim=1) #[N, H*W]
-        
+
 
         ### transfer
         ref_lv3_unfold = F.unfold(ref_lv3, kernel_size=(3, 3), padding=1)           #diffferent levels of reference feature
@@ -46,7 +46,6 @@ class SearchTransfer(nn.Module):
         #print("R_lv3_star_arg: {}".format(R_lv3_star_arg.shape))
         #print("T_lv3_unfold: {}\tlv2: {}\tlv1: {}".format(T_lv3_unfold.shape, T_lv2_unfold.shape, T_lv1_unfold.shape))
 
-        print("\n")
 
         T_lv3 = F.fold(T_lv3_unfold, output_size=lrsr_lv3.size()[-2:], kernel_size=(3,3), padding=1) / (3.*3.)
         T_lv2 = F.fold(T_lv2_unfold, output_size=(lrsr_lv3.size(2)*2, lrsr_lv3.size(3)*2), kernel_size=(6,6), padding=2, stride=2) / (3.*3.)
@@ -78,10 +77,10 @@ class SearchTransfer_multiframe(nn.Module):
         lrsr_lv3_unfold  = F.unfold(lrsr_lv3, kernel_size=(3, 3), padding=1)    #https://blog.csdn.net/qq_34914551/article/details/102940368
         #refsr_lv3_unfold_list = []
         refsr_lv3_cat = 0
-        for i in range(0,5):
+        for i in range(0,len(refsr_lv3)):
             tmp = F.unfold(refsr_lv3[i], kernel_size=(3, 3), padding=1)   #default stride is one
             tmp = tmp.permute(0,2,1)                                      #[N, Hr*Wr, C*k*k]
-            F.normalize(tmp, dim=2)
+            tmp = F.normalize(tmp, dim=2)
             if i==0:
                 refsr_lv3_cat = tmp
             else:
@@ -96,10 +95,9 @@ class SearchTransfer_multiframe(nn.Module):
         R_lv3 = torch.bmm(refsr_lv3_cat, lrsr_lv3_unfold) #[N, Hr*Wr*number_of_ref_frame, H*W], Performs a batch matrix-matrix product of matrices on two 3D vectors, to calculate similarity
         R_lv3_star, R_lv3_star_arg = torch.max(R_lv3, dim=1) #[N, H*W]
         #print("star_arg: {}".format(R_lv3_star_arg.shape))
-        
 
         ### transfer
-        for i in range(0,5):
+        for i in range(0,len(refsr_lv3)):
             tmp_lv3 = F.unfold(ref_lv3[i], kernel_size=(3, 3), padding=1)
             tmp_lv2 = F.unfold(ref_lv2[i], kernel_size=(6, 6), padding=2, stride=2)
             tmp_lv1 = F.unfold(ref_lv1[i], kernel_size=(12, 12), padding=4, stride=4)

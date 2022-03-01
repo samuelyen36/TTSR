@@ -3,7 +3,7 @@ python3 main.py --save_dir ./eval/CUFED/TTSR_record_lv5 \
                --reset True \
                --log_file_name eval.log \
                --eval True \
-               --eval_save_results False \
+               --eval_save_results True \
                --num_workers 4 \
                --dataset CUFED \
                --dataset_dir ./CUFED/ \
