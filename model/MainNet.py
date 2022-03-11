@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from model.attention import NonLocalAttention
 
 
 def conv1x1(in_channels, out_channels, stride=1):
@@ -199,9 +200,16 @@ class MainNet(nn.Module):
 
         self.merge_tail = MergeTail(n_feats)
 
-    def forward(self, x, S=None, T_lv3=None, T_lv2=None, T_lv1=None):
+        self.fustion_conv = conv3x3(n_feats*2, n_feats)
+        self.local_attention = NonLocalAttention(channel=n_feats)
+
+    def forward(self, x, S=None, T_lv3=None, T_lv2=None, T_lv1=None):       #x is the LR image
         ### shallow feature extraction
         x = self.SFE(x)
+
+        ### self made NL attention
+        NL = self.local_attention(x)
+        x = self.fustion_conv(torch.cat((x, NL), dim=1))
 
         ### stage11
         x11 = x
@@ -282,4 +290,4 @@ class MainNet(nn.Module):
 
         x = self.merge_tail(x31, x32, x33)
         #print("x31: {}\tx32: {}\tx33: {}\tx: {}".format(x31.shape, x32.shape, x33.shape, x.shape))
-        return x        #super-resolved image 
+        return x        #super-resolved image
