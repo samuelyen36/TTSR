@@ -2,8 +2,6 @@ import math
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from model.adain import AdaIN
-from model.attention import NonLocalAttention
 
 
 class SearchTransfer(nn.Module):
@@ -61,8 +59,6 @@ class SearchTransfer(nn.Module):
 class SearchTransfer_multiframe(nn.Module):
     def __init__(self):
         super(SearchTransfer_multiframe, self).__init__()
-        self.adain = AdaIN()
-        self._nonlocal = NonLocalAttention()
 
     def bis(self, input, dim, index):       #last dimension of input is the number of 1D feature vectors
         # batch index select
@@ -88,9 +84,8 @@ class SearchTransfer_multiframe(nn.Module):
             else:
                 refsr_lv3_cat = torch.cat((refsr_lv3_cat, tmp), dim=1)      #[N, Hr*Wr*number_of_ref_frame, C*k*k]
             
-        #refsr_lv3_cat = F.normalize(refsr_lv3_cat, dim=2)
-        #lrsr_lv3_unfold  = F.normalize(lrsr_lv3_unfold, dim=1) # [N, C*k*k, H*W]
-        refsr_lv3_cat = self.adain(refsr_lv3_cat, lrsr_lv3_unfold)
+        refsr_lv3_cat = F.normalize(refsr_lv3_cat, dim=2)
+        lrsr_lv3_unfold  = F.normalize(lrsr_lv3_unfold, dim=1) # [N, C*k*k, H*W]
         
         R_lv3 = torch.bmm(refsr_lv3_cat, lrsr_lv3_unfold) #[N, Hr*Wr*number_of_ref_frame, H*W], Performs a batch matrix-matrix product of matrices on two 3D vectors, to calculate similarity
         R_lv3_star, R_lv3_star_arg = torch.max(R_lv3, dim=1) #[N, H*W]

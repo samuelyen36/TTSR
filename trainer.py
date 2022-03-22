@@ -12,7 +12,6 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 import torchvision.utils as utils
-from model.rcan import make_cleaning_net
 
 
 class Trainer():
@@ -116,6 +115,7 @@ class Trainer():
 
             loss.backward()
             self.optimizer.step()
+            
 
         if ((not is_init) and current_epoch % self.args.save_every == 0):
             self.logger.info('saving the model...')
@@ -163,7 +163,6 @@ class Trainer():
                     ref_sr = sample_batched['Ref_sr']
                     input_filename = sample_batched['input_filename']
                     ref_filename = sample_batched['ref_filename']
-                    print("input name: {}\tref name: {}".format(input_filename, ref_filename))
 
                     sr, _, _, _, _ = self.model(lr=lr, lrsr=lr_sr, ref=ref, refsr=ref_sr)
                     if (self.args.eval_save_results):
