@@ -1,51 +1,39 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-#from torch.nn.utils import spectral_norm as spectral_norm_fn
-#from torch.nn.utils import weight_norm as weight_norm_fn
+from torch.nn.utils import spectral_norm as spectral_norm_fn
+from torch.nn.utils import weight_norm as weight_norm_fn
 from PIL import Image
 from torchvision import transforms
 from torchvision import utils as vutils
 from model import common
-from model.attention_tools import extract_image_patches,\
-    reduce_mean, reduce_sum, same_padding
 
 #in-scale non-local attention
 class NonLocalAttention(nn.Module):
     def __init__(self, channel=64, reduction=2, ksize=3, scale=3, stride=1, softmax_scale=10, average=True, conv=common.default_conv):
         super(NonLocalAttention, self).__init__()
-        #self.conv_match1 = common.BasicBlock(conv, channel, channel//reduction, 1, bn=False, act=nn.PReLU())
-        #self.conv_match2 = common.BasicBlock(conv, channel, channel//reduction, 1, bn=False, act = nn.PReLU())
-        #self.conv_assembly = common.BasicBlock(conv, channel, channel, 1,bn=False, act=nn.PReLU())
+        self.conv_match1 = common.BasicBlock(channel, channel//reduction, 1, bn=False, act=nn.PReLU())
+        self.conv_match2 = common.BasicBlock(channel, channel//reduction, 1, bn=False, act = nn.PReLU())
+        self.conv_assembly = common.BasicBlock(channel, channel, 1,bn=False, act=nn.PReLU())
         
-    def forward(self, input_base, input_ref=None):       #transfer feature of ref to base
-        x_embed_1 = self.conv_match1(input_base)
-        if input_ref is None:
-            x_embed_2 = self.conv_match2(input_base)
-            x_assembly = self.conv_assembly(input_base)
-        else:
-            x_embed_2 = self.conv_match2(input_ref)
-            x_assembly = self.conv_assembly(input_ref)
-        """
-        x_embed_1 = input_base
-        if input_ref is None:
-            x_embed_2 = input_base
-            x_assembly = input_base
-        else:
-            x_embed_2 = input_ref
-            x_assembly = input_ref
-        """
+    def forward(self, input):
+        x_embed_1 = self.conv_match1(input)
+        x_embed_2 = self.conv_match2(input)
+        #x_embed_1 = input
+        #x_embed_2 = input
+        x_assembly = self.conv_assembly(input)
+        #x_assembly = input
 
         N,C,H,W = x_embed_1.shape
-        x_embed_1 = x_embed_1.permute(0,2,3,1).view((N,H*W,C))  #output shape: (h*w) * c
-        x_embed_2 = x_embed_2.view(N,C,H*W)                     #output shape: c * (h*w)
-        score = torch.matmul(x_embed_1, x_embed_2)              #output shape: (h*w) * (h*w)
-        score = F.softmax(score, dim=2)             
-        x_assembly = x_assembly.view(N,-1,H*W).permute(0,2,1)   #output shape: h*w, c
-        x_final = torch.matmul(score, x_assembly)               #(h*w) * (C)
-        #print("x_embed_1: {}\tx_embed_2: {}\tscore: {}\tx_final: {}".format(x_embed_1.shape, x_embed_2.shape, score.shape, x_final.permute(0,2,1).view(N,-1,H,W).shape))
+        x_embed_1 = x_embed_1.permute(0,2,3,1).view((N,H*W,C))
+        x_embed_2 = x_embed_2.view(N,C,H*W)
+        score = torch.matmul(x_embed_1, x_embed_2)
+        score = F.softmax(score, dim=2)
+        x_assembly = x_assembly.view(N,-1,H*W).permute(0,2,1)
+        x_final = torch.matmul(score, x_assembly)
         return x_final.permute(0,2,1).view(N,-1,H,W)
 
+"""
 
 #cross-scale non-local attention
 class CrossScaleAttention(nn.Module):
@@ -66,10 +54,10 @@ class CrossScaleAttention(nn.Module):
 
         
 
-    def forward(self, input_ref, input_LR):
+    def forward(self, input):
         #get embedding
-        embed_w = self.conv_assembly(input_ref)
-        match_input = self.conv_match_1(input_ref)
+        embed_w = self.conv_assembly(input)
+        match_input = self.conv_match_1(input)
         
         # b*c*h*w
         shape_input = list(embed_w.size())   # b*c*h*w
@@ -89,8 +77,8 @@ class CrossScaleAttention(nn.Module):
         
     
         # downscaling X to form Y for cross-scale matching
-        #ref  = F.interpolate(input, scale_factor=1./self.scale, mode='bilinear')
-        ref = self.conv_match_2(input_LR)
+        ref  = F.interpolate(input, scale_factor=1./self.scale, mode='bilinear')
+        ref = self.conv_match_2(ref)
         w = extract_image_patches(ref, ksizes=[self.ksize, self.ksize],
                                   strides=[self.stride, self.stride],
                                   rates=[1, 1],
@@ -135,3 +123,4 @@ class CrossScaleAttention(nn.Module):
       
         y = torch.cat(y, dim=0)
         return y
+"""
